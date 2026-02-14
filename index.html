@@ -4,87 +4,161 @@
 <meta charset="UTF-8">
 <title>Urlaubsportal</title>
 <style>
-body {
-    background: linear-gradient(180deg, #1e3c72, #1b335f);
-    font-family: Arial, sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 40px;
+body{
+    background: linear-gradient(180deg,#1e3c72,#1b335f);
+    font-family: Arial;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:40px;
 }
-.container {
-    background: #243f66;
-    width: 600px;
-    padding: 35px;
-    border-radius: 20px;
-    border: 2px solid #5c7aa6;
-    box-shadow: 0 15px 40px rgba(0,0,0,0.4);
-    color: white;
-    margin-bottom: 20px;
+.container{
+    background:#243f66;
+    width:600px;
+    padding:30px;
+    border-radius:20px;
+    border:2px solid #5c7aa6;
+    box-shadow:0 15px 40px rgba(0,0,0,0.4);
+    color:white;
+    margin-bottom:20px;
 }
-h2, h3, h4 { margin-bottom: 15px; }
-label { display: block; margin-top: 15px; font-weight: bold; }
-input { width: 100%; padding: 10px; margin-top: 5px; border-radius: 8px; border: none; }
-button {
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: none;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    background: #1db954;
-    color: white;
+h2,h3{margin-bottom:15px;}
+input{
+    width:100%;
+    padding:10px;
+    margin-top:5px;
+    border-radius:8px;
+    border:none;
 }
-button:hover { background: #169944; }
-.message { margin-top: 15px; text-align: center; font-weight: bold; }
-.error { color: #ff5c5c; }
-.success { color: #4dff88; }
-.leitung-btn { margin-top: 5px; }
-.dropdown-header {
-    cursor: pointer;
-    font-weight: bold;
+button{
+    padding:6px 12px;
+    border-radius:20px;
+    border:none;
+    font-size:12px;
+    font-weight:bold;
+    cursor:pointer;
+    background:#1db954;
+    color:white;
 }
-.dropdown-content {
-    display: none;
-    margin-top: 10px;
-}
-hr {
-    border-color: #5c7aa6;
-}
+button:hover{background:#169944;}
+.hidden{display:none;}
+.dropdown-content{display:none;margin-top:10px;}
+hr{border-color:#5c7aa6;}
 </style>
 </head>
 <body>
 
-<div class="container">
-<h2>Leitung - Urlaube verwalten</h2>
+<!-- LOGIN -->
+<div class="container" id="loginBox">
+<h2>Login</h2>
+<input type="password" id="loginPw" placeholder="Passwort">
+<button onclick="login()">Login</button>
+<p id="loginMsg"></p>
+</div>
 
+<!-- MITARBEITER -->
+<div class="container hidden" id="mitarbeiterBox">
+<h2>Urlaubsantrag</h2>
+<label>Name</label>
+<input id="name">
+<label>Dienstnummer</label>
+<input id="dienstnummer">
+<label>Start</label>
+<input type="date" id="start">
+<label>Ende</label>
+<input type="date" id="end">
+<label>Grund</label>
+<input id="grund">
+<br><br>
+<button onclick="urlaubEinreichen()">Einreichen</button>
+<button onclick="logout()">Logout</button>
+<p id="msg"></p>
+</div>
+
+<!-- LEITUNG -->
+<div class="container hidden" id="leitungBox">
+<h2>Leitung</h2>
 <h3>Offene Urlaube</h3>
-<div id="urlaubListLeitung"></div>
+<div id="offene"></div>
 
 <h3>Genehmigte Urlaube</h3>
-<div id="genehmigteUrlaube"></div>
+<div id="genehmigt"></div>
 
 <h3>Abgelehnte Urlaube</h3>
-<div id="abgelehnteUrlaube"></div>
+<div id="abgelehnt"></div>
 
+<button onclick="logout()">Logout</button>
 </div>
 
 <script>
 
-const BACKEND_URL = "https://urlaubsportal-backend-production.up.railway.app";
-let urlaube = [];
+const BACKEND_URL="https://urlaubsportal-backend-production.up.railway.app";
 
-function formatDateDE(dateStr){
-    const d = new Date(dateStr);
-    return d.toLocaleDateString("de-DE");
+let urlaube=[];
+
+/* ================= LOGIN ================= */
+
+function login(){
+    const pw=document.getElementById("loginPw").value;
+
+    if(pw==="mitarbeiter"){
+        document.getElementById("loginBox").classList.add("hidden");
+        document.getElementById("mitarbeiterBox").classList.remove("hidden");
+    }
+    else if(pw==="leitung"){
+        document.getElementById("loginBox").classList.add("hidden");
+        document.getElementById("leitungBox").classList.remove("hidden");
+        lade();
+    }
+    else{
+        document.getElementById("loginMsg").innerText="Falsches Passwort";
+    }
 }
 
-async function ladeUrlaube(){
-    const res = await fetch(`${BACKEND_URL}/data`);
-    const data = await res.json();
-    urlaube = data.urlaube;
-    renderLeitung();
+function logout(){
+    location.reload();
 }
+
+/* ================= DATEN ================= */
+
+async function lade(){
+    const res=await fetch(`${BACKEND_URL}/data`);
+    const data=await res.json();
+    urlaube=data.urlaube;
+    render();
+}
+
+function formatDate(d){
+    return new Date(d).toLocaleDateString("de-DE");
+}
+
+/* ================= MITARBEITER ================= */
+
+async function urlaubEinreichen(){
+    const name=document.getElementById("name").value;
+    const dienstnummer=document.getElementById("dienstnummer").value;
+    const start=document.getElementById("start").value;
+    const end=document.getElementById("end").value;
+    const grund=document.getElementById("grund").value;
+
+    const res=await fetch(`${BACKEND_URL}/urlaub`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name,dienstnummer,start,end,grund})
+    });
+
+    const data=await res.json();
+
+    if(data.error){
+        document.getElementById("msg").innerText=data.error;
+        document.getElementById("msg").style.color="red";
+    }else{
+        document.getElementById("msg").innerText="Antrag eingereicht";
+        document.getElementById("msg").style.color="lightgreen";
+    }
+}
+
+/* ================= LEITUNG ================= */
 
 async function genehmigen(name,start,end){
     await fetch(`${BACKEND_URL}/genehmigen`,{
@@ -92,7 +166,7 @@ async function genehmigen(name,start,end){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({name,start,end})
     });
-    ladeUrlaube();
+    lade();
 }
 
 async function ablehnen(name,start,end){
@@ -101,7 +175,7 @@ async function ablehnen(name,start,end){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({name,start,end})
     });
-    ladeUrlaube();
+    lade();
 }
 
 async function loeschen(name,start,end){
@@ -110,29 +184,32 @@ async function loeschen(name,start,end){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({name,start,end})
     });
-    ladeUrlaube();
+    lade();
 }
 
-function renderLeitung(){
-
-    const offeneDiv=document.getElementById("urlaubListLeitung");
-    const genehmigtDiv=document.getElementById("genehmigteUrlaube");
-    const abgelehntDiv=document.getElementById("abgelehnteUrlaube");
-
-    offeneDiv.innerHTML="";
-    genehmigtDiv.innerHTML="";
-    abgelehntDiv.innerHTML="";
+function render(){
 
     const offene=urlaube.filter(u=>u.status==="eingereicht");
     const genehmigte=urlaube.filter(u=>u.status==="genehmigt");
     const abgelehnte=urlaube.filter(u=>u.status==="abgelehnt");
 
-    // OFFENE
-    if(offene.length===0){
-        offeneDiv.innerHTML="<p>Keine offenen Urlaube.</p>";
+    renderListe(offene,"offene",true);
+    renderListe(genehmigte,"genehmigt",false);
+    renderListe(abgelehnte,"abgelehnt",false);
+}
+
+function renderListe(list,id,mitButtons){
+
+    const box=document.getElementById(id);
+    box.innerHTML="";
+
+    if(list.length===0){
+        box.innerHTML="Keine Einträge";
+        return;
     }
 
-    offene.forEach(u=>{
+    list.forEach(u=>{
+
         const div=document.createElement("div");
         div.style.border="1px solid #5c7aa6";
         div.style.padding="10px";
@@ -140,69 +217,27 @@ function renderLeitung(){
 
         div.innerHTML=`
             <strong>${u.name}</strong> (${u.dienstnummer})<br>
-            ${formatDateDE(u.start)} - ${formatDateDE(u.end)}<br>
+            ${formatDate(u.start)} - ${formatDate(u.end)}<br>
             <strong>Grund:</strong> ${u.grund}
-            <div style="display:flex; gap:10px; margin-top:8px;">
-                <button onclick="genehmigen('${u.name}','${u.start}','${u.end}')">✔ Genehmigen</button>
-                <button onclick="ablehnen('${u.name}','${u.start}','${u.end}')">✖ Ablehnen</button>
-            </div>
         `;
-        offeneDiv.appendChild(div);
-    });
 
-    renderGrouped(genehmigte, genehmigtDiv);
-    renderGrouped(abgelehnte, abgelehntDiv);
-}
-
-function renderGrouped(list, container){
-
-    if(list.length===0){
-        container.innerHTML="<p>Keine Einträge vorhanden.</p>";
-        return;
-    }
-
-    const grouped={};
-    list.forEach(u=>{
-        if(!grouped[u.name]) grouped[u.name]=[];
-        grouped[u.name].push(u);
-    });
-
-    for(const name in grouped){
-
-        const wrapper=document.createElement("div");
-        wrapper.style.border="1px solid #5c7aa6";
-        wrapper.style.padding="10px";
-        wrapper.style.margin="8px 0";
-
-        const header=document.createElement("div");
-        header.className="dropdown-header";
-        header.innerHTML=`▼ ${name} (${grouped[name][0].dienstnummer})`;
-
-        const content=document.createElement("div");
-        content.className="dropdown-content";
-
-        grouped[name].forEach(u=>{
-            const entry=document.createElement("div");
-            entry.innerHTML=`
-                ${formatDateDE(u.start)} - ${formatDateDE(u.end)}<br>
-                <strong>Grund:</strong> ${u.grund}<br>
-                <button onclick="loeschen('${u.name}','${u.start}','${u.end}')">🗑 Löschen</button>
-                <hr>
+        if(mitButtons){
+            div.innerHTML+=`
+                <div style="display:flex; gap:10px; margin-top:8px;">
+                    <button onclick="genehmigen('${u.name}','${u.start}','${u.end}')">Genehmigen</button>
+                    <button onclick="ablehnen('${u.name}','${u.start}','${u.end}')">Ablehnen</button>
+                </div>
             `;
-            content.appendChild(entry);
-        });
+        }else{
+            div.innerHTML+=`
+                <br>
+                <button onclick="loeschen('${u.name}','${u.start}','${u.end}')">Löschen</button>
+            `;
+        }
 
-        header.onclick=()=>{
-            content.style.display = content.style.display==="block" ? "none" : "block";
-        };
-
-        wrapper.appendChild(header);
-        wrapper.appendChild(content);
-        container.appendChild(wrapper);
-    }
+        box.appendChild(div);
+    });
 }
-
-ladeUrlaube();
 
 </script>
 </body>
