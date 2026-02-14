@@ -14,7 +14,7 @@ body {
 }
 .container {
     background: #243f66;
-    width: 600px;
+    width: 650px;
     padding: 35px;
     border-radius: 20px;
     border: 2px solid #5c7aa6;
@@ -26,12 +26,11 @@ h2, h3 { margin-bottom: 20px; font-size: 22px; }
 label { display: block; margin-top: 15px; font-weight: bold; }
 input, select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 8px; border: none; font-size: 14px; }
 button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 15px;
-    border-radius: 25px;
+    padding: 8px 12px;
+    margin: 5px 2px;
+    border-radius: 15px;
     border: none;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: bold;
     cursor: pointer;
     background: #1db954;
@@ -45,17 +44,20 @@ button:hover { background: #169944; }
 #langzeit { margin-top: 20px; border-top: 1px solid #5c7aa6; padding-top: 20px; }
 .dienstnummer-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #5c7aa6; }
 .leitung-btn { padding: 5px 10px; font-size: 13px; border-radius: 15px; margin-right: 5px;}
+.dropdown { margin: 5px 0; }
+.dropdown select { width: 100%; }
 </style>
 </head>
 <body>
 
+<!-- Mitarbeiter Urlaubsantrag -->
 <div class="container" id="urlaubContainer">
     <h2>Urlaubsantrag</h2>
     <form id="urlaubForm">
         <label>Vor- und Nachname</label>
         <input type="text" id="name" placeholder="Vorname Nachname" required>
         <label>Dienstnummer</label>
-        <input type="text" id="dienstnummer" value="PD-001" required>
+        <input type="text" id="dienstnummer" value="PD-001" maxlength="6" required>
         <label>Startdatum</label>
         <input type="date" id="startDate" required>
         <label>Enddatum</label>
@@ -72,7 +74,7 @@ button:hover { background: #169944; }
             <label>Vor- und Nachname</label>
             <input type="text" id="longName" placeholder="Vorname Nachname" required>
             <label>Dienstnummer</label>
-            <input type="text" id="longDienstnummer" value="PD-001" required>
+            <input type="text" id="longDienstnummer" value="PD-001" maxlength="6" required>
             <label>Startdatum</label>
             <input type="date" id="longStart" required>
             <label>Enddatum</label>
@@ -85,6 +87,7 @@ button:hover { background: #169944; }
     </div>
 </div>
 
+<!-- Leitung Login -->
 <div class="container" id="loginContainer">
     <h2>Leitung Login</h2>
     <label>Benutzername</label>
@@ -95,6 +98,7 @@ button:hover { background: #169944; }
     <div id="loginMsg" class="message"></div>
 </div>
 
+<!-- Leitung Bereich -->
 <div class="container" id="leitungContainer" style="display:none;">
     <h2>Leitung - Urlaube verwalten</h2>
     <h3>Offene Urlaube</h3>
@@ -112,29 +116,24 @@ let urlaube = [];
 let gesperrt = [];
 
 // --- Dienstnummer Logik ---
-function enforceDienstnummer(inputEl){
-    inputEl.addEventListener("input", ()=>{
-        if(!inputEl.value.startsWith("PD-")) inputEl.value="PD-";
-        let zahlenTeil = inputEl.value.substring(3).replace(/\D/g,"");
-        if(zahlenTeil !== ""){
-            let zahl = parseInt(zahlenTeil);
-            if(zahl>160) zahl=160;
-            zahlenTeil = String(zahl).padStart(3,'0');
-        }
-        inputEl.value="PD-"+zahlenTeil;
-    });
-    inputEl.addEventListener("keydown", e=>{
-        if(inputEl.selectionStart<=3 && (e.key==="Backspace" || e.key==="Delete")) e.preventDefault();
-    });
+function formatDienstnummer(val){
+    let num = val.replace(/\D/g,"").substring(0,3);
+    if(!num) num="001";
+    return "PD-"+num.padStart(3,'0');
 }
-enforceDienstnummer(document.getElementById("dienstnummer"));
-enforceDienstnummer(document.getElementById("longDienstnummer"));
 
-// --- Datum Format DE, Monat 2-stellig ---
+document.getElementById("dienstnummer").addEventListener("input", e=>{
+    e.target.value = formatDienstnummer(e.target.value);
+});
+document.getElementById("longDienstnummer").addEventListener("input", e=>{
+    e.target.value = formatDienstnummer(e.target.value);
+});
+
+// --- Datum formatieren DE ---
 function formatDateDE(dateStr){
     const d = new Date(dateStr);
+    const mm = String(d.getMonth()+1).padStart(2,'0'); // Monat 2-stellig
     const dd = String(d.getDate()).padStart(2,'0');
-    const mm = String(d.getMonth()+1).padStart(2,'0');
     const yyyy = d.getFullYear();
     return `${dd}.${mm}.${yyyy}`;
 }
@@ -149,36 +148,30 @@ async function ladeUrlaube(){
     renderDienstnummerList();
 }
 
-// --- Neuer Urlaub ---
+// --- Urlaub einreichen ---
 async function neuerUrlaub(urlaub,msgEl){
+    if(!urlaub.name.trim() || !urlaub.dienstnummer.trim() || !urlaub.grund.trim()){
+        msgEl.innerHTML="Alle Felder müssen ausgefüllt sein!";
+        msgEl.className="message error";
+        return;
+    }
+
     const startDate = new Date(urlaub.start);
     const endDate = new Date(urlaub.end);
-    const diffDays = (endDate-startDate)/(1000*60*60*24)+1;
+    const diffDays = (endDate - startDate)/(1000*60*60*24)+1;
 
-    // Pflichtfelder prüfen
-    if(!urlaub.name || !urlaub.dienstnummer){
-        msgEl.innerHTML="Name und Dienstnummer sind Pflicht!";
-        msgEl.className="message error"; return;
-    }
-    if(!urlaub.grund){
-        msgEl.innerHTML="Grund ist Pflicht!";
-        msgEl.className="message error"; return;
-    }
-    if(endDate<startDate){
+    if(endDate < startDate){
         msgEl.innerHTML="Enddatum darf nicht vor Startdatum liegen!";
-        msgEl.className="message error"; return;
+        msgEl.className="message error";
+        return;
     }
 
-    let minDays=4, maxDays=14;
+    let minDays = 4;
+    let maxDays = 14;
     if(urlaub.type==="longVacationForm"){ minDays=20; maxDays=40; }
-    if(diffDays<minDays){
-        msgEl.innerHTML=`Mindestdauer: ${minDays} Tage`;
-        msgEl.className="message error"; return;
-    }
-    if(diffDays>maxDays){
-        msgEl.innerHTML=`Maximaldauer: ${maxDays} Tage`;
-        msgEl.className="message error"; return;
-    }
+
+    if(diffDays < minDays){ msgEl.innerHTML=`Mindestdauer: ${minDays} Tage`; msgEl.className="message error"; return; }
+    if(diffDays > maxDays){ msgEl.innerHTML=`Maximaldauer: ${maxDays} Tage`; msgEl.className="message error"; return; }
 
     try{
         const res = await fetch(`${BACKEND_URL}/urlaub`,{
@@ -191,136 +184,116 @@ async function neuerUrlaub(urlaub,msgEl){
         msgEl.innerHTML="Urlaub erfolgreich eingereicht!";
         msgEl.className="message success";
         await ladeUrlaube();
-    }catch(err){
-        msgEl.innerHTML="Fehler beim Senden"; msgEl.className="message error";
-    }
+    }catch(err){ msgEl.innerHTML="Fehler beim Senden"; msgEl.className="message error"; }
 }
 
 // --- Formulare ---
-document.getElementById("urlaubForm").addEventListener("submit", async e=>{
+document.getElementById("urlaubForm").addEventListener("submit", e=>{
     e.preventDefault();
-    await neuerUrlaub({
-        name: document.getElementById("name").value,
-        dienstnummer: document.getElementById("dienstnummer").value,
-        start: document.getElementById("startDate").value,
-        end: document.getElementById("endDate").value,
-        grund: document.getElementById("grund").value,
-        type: "urlaubForm"
-    }, document.getElementById("msg"));
+    const name=document.getElementById("name").value;
+    const dienstnummer=document.getElementById("dienstnummer").value;
+    const start=document.getElementById("startDate").value;
+    const end=document.getElementById("endDate").value;
+    const grund=document.getElementById("grund").value;
+    neuerUrlaub({name,dienstnummer,start,end,grund,type:"urlaubForm"},document.getElementById("msg"));
 });
-document.getElementById("longVacationForm").addEventListener("submit", async e=>{
+
+document.getElementById("longVacationForm").addEventListener("submit", e=>{
     e.preventDefault();
-    await neuerUrlaub({
-        name: document.getElementById("longName").value,
-        dienstnummer: document.getElementById("longDienstnummer").value,
-        start: document.getElementById("longStart").value,
-        end: document.getElementById("longEnd").value,
-        grund: document.getElementById("longGrund").value,
-        type: "longVacationForm"
-    }, document.getElementById("longMsg"));
+    const name=document.getElementById("longName").value;
+    const dienstnummer=document.getElementById("longDienstnummer").value;
+    const start=document.getElementById("longStart").value;
+    const end=document.getElementById("longEnd").value;
+    const grund=document.getElementById("longGrund").value;
+    neuerUrlaub({name,dienstnummer,start,end,grund,type:"longVacationForm"},document.getElementById("longMsg"));
 });
 
 // --- Leitung Login ---
-document.getElementById("loginBtn").addEventListener("click", ()=>{
-    const user = document.getElementById("loginUser").value;
-    const pass = document.getElementById("loginPass").value;
+document.getElementById("loginBtn").addEventListener("click",()=>{
+    const user=document.getElementById("loginUser").value;
+    const pass=document.getElementById("loginPass").value;
     if(user==="leitung" && pass==="1234"){
         document.getElementById("leitungContainer").style.display="block";
         document.getElementById("loginMsg").innerHTML="Login erfolgreich!";
         document.getElementById("loginMsg").className="message success";
         ladeUrlaube();
-    } else {
+    }else{
         document.getElementById("loginMsg").innerHTML="Login fehlgeschlagen!";
         document.getElementById("loginMsg").className="message error";
     }
 });
 
-// --- Genehmigen & Löschen ---
+// --- Genehmigen, Löschen, Zurückziehen ---
 async function genehmigen(dienstnummer){
-    await fetch(`${BACKEND_URL}/genehmigen`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dienstnummer})});
+    await fetch(`${BACKEND_URL}/genehmigen`,{
+        method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({dienstnummer})
+    });
     await ladeUrlaube();
 }
-async function loeschen(dienstnummer){
-    await fetch(`${BACKEND_URL}/loeschen`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dienstnummer})});
+
+async function loeschen(dienstnummer,start,end){
+    if(!start || !end){ alert("Start- und Enddatum angeben!"); return; }
+    await fetch(`${BACKEND_URL}/loeschen`,{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({dienstnummer,start,end})
+    });
     await ladeUrlaube();
 }
+
 async function toggleSperre(num){
-    await fetch(`${BACKEND_URL}/sperre`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({dienstnummer:num})});
+    await fetch(`${BACKEND_URL}/sperre`,{
+        method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({dienstnummer:num})
+    });
     await ladeUrlaube();
 }
 
 // --- Render Leitungsbereich ---
 function renderLeitung(){
-    const offeneDiv = document.getElementById("urlaubListLeitung");
-    const genehmigtDiv = document.getElementById("genehmigteUrlaube");
+    const offeneDiv=document.getElementById("urlaubListLeitung");
+    const genehmigtDiv=document.getElementById("genehmigteUrlaube");
     offeneDiv.innerHTML=""; genehmigtDiv.innerHTML="";
 
-    function getTypName(type){
-        if(type==="urlaubForm") return "Urlaubsantrag";
-        if(type==="longVacationForm") return "Langzeit Antrag";
-        return type;
-    }
+    const offene=urlaube.filter(u=>u.status==="eingereicht");
+    const genehmigte=urlaube.filter(u=>u.status==="genehmigt");
 
     // Offene Urlaube
-    const offene = urlaube.filter(u=>u.status==="eingereicht");
     offene.forEach(u=>{
-        const div = document.createElement("div");
+        const div=document.createElement("div");
         div.style.border="1px solid #5c7aa6"; div.style.margin="5px 0"; div.style.padding="8px";
         div.innerHTML=`<strong>${u.name}</strong> (${u.dienstnummer})<br>
-        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${getTypName(u.type)})<br>
-        <strong>Grund:</strong> ${u.grund || "-"}<br>
+        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${u.type==="longVacationForm"?"Langzeit Antrag":"Urlaubsantrag"})<br>
+        <strong>Grund:</strong> ${u.grund}<br>
         <button class="leitung-btn" onclick="genehmigen('${u.dienstnummer}')">✔ Genehmigen</button>
-        <button class="leitung-btn" onclick="loeschen('${u.dienstnummer}')">❌ Löschen</button>`;
+        <button class="leitung-btn" onclick="loeschen('${u.dienstnummer}','${u.start}','${u.end}')">❌ Löschen</button>`;
         offeneDiv.appendChild(div);
     });
-    if(offene.length===0) offeneDiv.innerHTML="<p>Keine offenen Urlaube.</p>";
 
-    // Genehmigte Urlaube gruppieren nach Name
-    const genehmigte = urlaube.filter(u=>u.status==="genehmigt");
-    const grouped = {};
+    // Genehmigte Urlaube nach Name gruppieren
+    const gruppiert = {};
     genehmigte.forEach(u=>{
-        if(!grouped[u.name]) grouped[u.name]=[];
-        grouped[u.name].push(u);
+        if(!gruppiert[u.name]) gruppiert[u.name]=[];
+        gruppiert[u.name].push(u);
     });
 
-    for(const [name, urlaubeArr] of Object.entries(grouped)){
-        const container = document.createElement("div");
-        container.style.border="1px solid #5c7aa6"; container.style.margin="5px 0"; container.style.padding="8px";
-
-        const header = document.createElement("div");
-        header.style.cursor="pointer"; header.style.fontWeight="bold";
-        header.innerText = name + " ▼";
-        container.appendChild(header);
-
-        const content = document.createElement("div");
-        content.style.display="none"; content.style.marginTop="5px";
-        urlaubeArr.forEach(u=>{
-            const line = document.createElement("div");
-            line.style.borderBottom="1px solid #5c7aa6"; line.style.padding="4px 0";
-            line.innerHTML = `${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${getTypName(u.type)})<br><strong>Grund:</strong> ${u.grund || "-"}`;
-            content.appendChild(line);
-        });
-        container.appendChild(content);
-
-        header.addEventListener("click", ()=> {
-            content.style.display = content.style.display==="none" ? "block" : "none";
-        });
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className="leitung-btn"; deleteBtn.style.marginTop="5px"; deleteBtn.innerText="❌ Alle löschen";
-        deleteBtn.onclick = async ()=>{
-            for(const u of urlaubeArr) await loeschen(u.dienstnummer);
-        };
-        container.appendChild(deleteBtn);
-
-        genehmigtDiv.appendChild(container);
+    for(const name in gruppiert){
+        const div=document.createElement("div");
+        div.style.border="1px solid #5c7aa6"; div.style.margin="5px 0"; div.style.padding="8px";
+        const options = gruppiert[name].map(u=>`<option value="${u.start}|${u.end}">${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${u.type==="longVacationForm"?"Langzeit Antrag":"Urlaubsantrag"})</option>`).join("");
+        div.innerHTML=`<strong>${name}</strong>
+        <div class="dropdown">
+            <select>${options}</select>
+            <button class="leitung-btn" onclick="loeschen('${gruppiert[name][0].dienstnummer}', ...this.previousElementSibling.value.split('|'))">⏪ Zurückziehen/Löschen</button>
+        </div>`;
+        genehmigtDiv.appendChild(div);
     }
+
+    if(offene.length===0) offeneDiv.innerHTML="<p>Keine offenen Urlaube.</p>";
     if(genehmigte.length===0) genehmigtDiv.innerHTML="<p>Keine genehmigten Urlaube.</p>";
 }
 
 // --- Dienstnummer Liste ---
 function renderDienstnummerList(){
-    const container = document.getElementById("dienstnummerList");
+    const container=document.getElementById("dienstnummerList");
     container.innerHTML="";
     for(let i=1;i<=160;i++){
         const num="PD-"+String(i).padStart(3,'0');
@@ -332,6 +305,7 @@ function renderDienstnummerList(){
         container.appendChild(div);
     }
 }
+
 </script>
 </body>
 </html>
