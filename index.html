@@ -106,7 +106,7 @@ button:hover { background: #169944; }
 </div>
 
 <script>
-const BACKEND_URL = "http://localhost:3000"; // anpassen, wenn Server woanders liegt
+const BACKEND_URL = "http://localhost:3000"; // Server-Adresse
 
 let urlaube = [];
 let gesperrt = [];
@@ -157,9 +157,8 @@ async function neuerUrlaub(urlaub,msgEl){
         return;
     }
 
-    // Maximaldauer prüfen
     let maxDays = 14; // Standard
-    if(urlaub.type === "longVacationForm") maxDays = 40; // Langzeiturlaub
+    if(urlaub.type === "longVacationForm") maxDays = 40;
 
     if(diffDays > maxDays){
         msgEl.innerHTML = `Urlaub darf maximal ${maxDays} Tage dauern!`;
@@ -188,7 +187,7 @@ async function neuerUrlaub(urlaub,msgEl){
     }
 }
 
-// --- Formular Event ---
+// --- Formulare ---
 document.getElementById("urlaubForm").addEventListener("submit", async e=>{
     e.preventDefault();
     const name=document.getElementById("name").value;
@@ -201,11 +200,13 @@ document.getElementById("urlaubForm").addEventListener("submit", async e=>{
 
 document.getElementById("longVacationForm").addEventListener("submit", async e=>{
     e.preventDefault();
+    // Name und DN aus normalem Formular übernehmen
+    const name=document.getElementById("name").value;
     const dienstnummer=document.getElementById("dienstnummer").value;
     const start=document.getElementById("longStart").value;
     const end=document.getElementById("longEnd").value;
     const grund=document.getElementById("longGrund").value;
-    await neuerUrlaub({name:"Langzeiturlaub",dienstnummer,start,end,grund,type:"longVacationForm"},document.getElementById("longMsg"));
+    await neuerUrlaub({name,dienstnummer,start,end,grund,type:"longVacationForm"},document.getElementById("longMsg"));
 });
 
 // --- Leitung Login ---
@@ -258,31 +259,39 @@ function renderLeitung(){
     const offeneDiv=document.getElementById("urlaubListLeitung");
     const genehmigtDiv=document.getElementById("genehmigteUrlaube");
     offeneDiv.innerHTML=""; genehmigtDiv.innerHTML="";
+
     const offene=urlaube.filter(u=>u.status==="eingereicht");
     const genehmigte=urlaube.filter(u=>u.status==="genehmigt");
 
-    if(offene.length===0){ offeneDiv.innerHTML="<p>Keine offenen Urlaube.</p>"; }
+    function getTypName(type){
+        if(type==="urlaubForm") return "Urlaubsantrag";
+        if(type==="longVacationForm") return "Langzeit Antrag";
+        return type;
+    }
+
     offene.forEach(u=>{
         const div=document.createElement("div");
         div.style.border="1px solid #5c7aa6"; div.style.margin="5px 0"; div.style.padding="8px";
         div.innerHTML=`<strong>${u.name}</strong> (${u.dienstnummer})<br>
-        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${u.type})<br>
+        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${getTypName(u.type)})<br>
         <strong>Grund:</strong> ${u.grund || "-"}<br>
         <button class="leitung-btn" onclick="genehmigen('${u.dienstnummer}')">✔ Genehmigen</button>
         <button class="leitung-btn" onclick="loeschen('${u.dienstnummer}')">❌ Löschen</button>`;
         offeneDiv.appendChild(div);
     });
 
-    if(genehmigte.length===0){ genehmigtDiv.innerHTML="<p>Keine genehmigten Urlaube.</p>"; }
     genehmigte.forEach(u=>{
         const div=document.createElement("div");
         div.style.border="1px solid #5c7aa6"; div.style.margin="5px 0"; div.style.padding="8px";
         div.innerHTML=`<strong>${u.name}</strong> (${u.dienstnummer})<br>
-        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${u.type})<br>
+        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${getTypName(u.type)})<br>
         <strong>Grund:</strong> ${u.grund || "-"}<br>
         <button class="leitung-btn" onclick="loeschen('${u.dienstnummer}')">❌ Löschen</button>`;
         genehmigtDiv.appendChild(div);
     });
+
+    if(offene.length===0) offeneDiv.innerHTML="<p>Keine offenen Urlaube.</p>";
+    if(genehmigte.length===0) genehmigtDiv.innerHTML="<p>Keine genehmigten Urlaube.</p>";
 }
 
 // --- Dienstnummer Liste ---
@@ -302,4 +311,3 @@ function renderDienstnummerList(){
 </script>
 </body>
 </html>
-
