@@ -146,7 +146,6 @@ async function ladeUrlaube(){
 
 // --- Urlaub einreichen ---
 async function neuerUrlaub(urlaub,msgEl){
-    // Dauer prüfen
     const startDate = new Date(urlaub.start);
     const endDate = new Date(urlaub.end);
     const diffTime = endDate - startDate;
@@ -158,8 +157,12 @@ async function neuerUrlaub(urlaub,msgEl){
         return;
     }
 
-    if(diffDays > 14){
-        msgEl.innerHTML = "Urlaub darf maximal 14 Tage dauern!";
+    // Maximaldauer prüfen
+    let maxDays = 14; // Standard
+    if(urlaub.type === "longVacationForm") maxDays = 40; // Langzeiturlaub
+
+    if(diffDays > maxDays){
+        msgEl.innerHTML = `Urlaub darf maximal ${maxDays} Tage dauern!`;
         msgEl.className = "message error";
         return;
     }
@@ -299,3 +302,4 @@ function renderDienstnummerList(){
 </script>
 </body>
 </html>
+
