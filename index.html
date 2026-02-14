@@ -146,6 +146,24 @@ async function ladeUrlaube(){
 
 // --- Urlaub einreichen ---
 async function neuerUrlaub(urlaub,msgEl){
+    // Dauer prüfen
+    const startDate = new Date(urlaub.start);
+    const endDate = new Date(urlaub.end);
+    const diffTime = endDate - startDate;
+    const diffDays = diffTime / (1000 * 60 * 60 * 24) + 1; // inkl. Starttag
+
+    if(endDate < startDate){
+        msgEl.innerHTML = "Enddatum darf nicht vor Startdatum liegen!";
+        msgEl.className = "message error";
+        return;
+    }
+
+    if(diffDays > 14){
+        msgEl.innerHTML = "Urlaub darf maximal 14 Tage dauern!";
+        msgEl.className = "message error";
+        return;
+    }
+
     try{
         const res = await fetch(`${BACKEND_URL}/urlaub`,{
             method:"POST",
@@ -153,10 +171,18 @@ async function neuerUrlaub(urlaub,msgEl){
             body: JSON.stringify(urlaub)
         });
         const data = await res.json();
-        if(data.error){ msgEl.innerHTML=data.error; msgEl.className="message error"; return; }
-        msgEl.innerHTML="Urlaub erfolgreich eingereicht!"; msgEl.className="message success";
+        if(data.error){ 
+            msgEl.innerHTML=data.error; 
+            msgEl.className="message error"; 
+            return; 
+        }
+        msgEl.innerHTML="Urlaub erfolgreich eingereicht!"; 
+        msgEl.className="message success";
         await ladeUrlaube();
-    }catch(err){ msgEl.innerHTML="Fehler beim Senden"; msgEl.className="message error"; }
+    }catch(err){ 
+        msgEl.innerHTML="Fehler beim Senden"; 
+        msgEl.className="message error"; 
+    }
 }
 
 // --- Formular Event ---
