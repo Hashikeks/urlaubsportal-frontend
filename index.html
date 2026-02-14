@@ -44,7 +44,7 @@ button:hover { background: #169944; }
 .success { color: #4dff88; }
 #langzeit { margin-top: 20px; border-top: 1px solid #5c7aa6; padding-top: 20px; }
 .dienstnummer-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #5c7aa6; }
-.leitung-btn { padding: 5px 10px; font-size: 13px; border-radius: 15px; }
+.leitung-btn { padding: 5px 10px; font-size: 13px; border-radius: 15px; margin-right: 5px;}
 </style>
 </head>
 <body>
@@ -61,6 +61,8 @@ button:hover { background: #169944; }
         <input type="date" id="startDate" required>
         <label>Enddatum</label>
         <input type="date" id="endDate" required>
+        <label>Grund</label>
+        <input type="text" id="grund" required>
         <button type="submit">Urlaub einreichen</button>
     </form>
     <div id="msg" class="message"></div>
@@ -72,6 +74,8 @@ button:hover { background: #169944; }
             <input type="date" id="longStart" required>
             <label>Enddatum</label>
             <input type="date" id="longEnd" required>
+            <label>Grund</label>
+            <input type="text" id="longGrund" required>
             <button type="submit">Langzeiturlaub einreichen</button>
         </form>
         <div id="longMsg" class="message"></div>
@@ -112,6 +116,11 @@ const dienstInput = document.getElementById("dienstnummer");
 dienstInput.addEventListener("input", function() {
     if (!dienstInput.value.startsWith("PD-")) dienstInput.value = "PD-";
     let zahlenTeil = dienstInput.value.substring(3).replace(/[^0-9]/g, "");
+    if(zahlenTeil !== "") {
+        let zahl = parseInt(zahlenTeil);
+        if(zahl > 160) zahl = 160; // Maximal PD-160
+        zahlenTeil = String(zahl);
+    }
     zahlenTeil = zahlenTeil.substring(0,3);
     dienstInput.value = "PD-" + zahlenTeil;
 });
@@ -157,7 +166,8 @@ document.getElementById("urlaubForm").addEventListener("submit", async e=>{
     const dienstnummer=document.getElementById("dienstnummer").value;
     const start=document.getElementById("startDate").value;
     const end=document.getElementById("endDate").value;
-    await neuerUrlaub({name,dienstnummer,start,end,type:"urlaubForm"},document.getElementById("msg"));
+    const grund=document.getElementById("grund").value;
+    await neuerUrlaub({name,dienstnummer,start,end,grund,type:"urlaubForm"},document.getElementById("msg"));
 });
 
 document.getElementById("longVacationForm").addEventListener("submit", async e=>{
@@ -165,7 +175,8 @@ document.getElementById("longVacationForm").addEventListener("submit", async e=>
     const dienstnummer=document.getElementById("dienstnummer").value;
     const start=document.getElementById("longStart").value;
     const end=document.getElementById("longEnd").value;
-    await neuerUrlaub({name:"Langzeiturlaub",dienstnummer,start,end,type:"longVacationForm"},document.getElementById("longMsg"));
+    const grund=document.getElementById("longGrund").value;
+    await neuerUrlaub({name:"Langzeiturlaub",dienstnummer,start,end,grund,type:"longVacationForm"},document.getElementById("longMsg"));
 });
 
 // --- Leitung Login ---
@@ -186,6 +197,16 @@ document.getElementById("loginBtn").addEventListener("click",()=>{
 // --- Genehmigen ---
 async function genehmigen(dienstnummer){
     await fetch(`${BACKEND_URL}/genehmigen`,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({dienstnummer})
+    });
+    await ladeUrlaube();
+}
+
+// --- Löschen ---
+async function loeschen(dienstnummer){
+    await fetch(`${BACKEND_URL}/loeschen`,{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({dienstnummer})
@@ -217,7 +238,9 @@ function renderLeitung(){
         div.style.border="1px solid #5c7aa6"; div.style.margin="5px 0"; div.style.padding="8px";
         div.innerHTML=`<strong>${u.name}</strong> (${u.dienstnummer})<br>
         ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${u.type})<br>
-        <button class="leitung-btn" onclick="genehmigen('${u.dienstnummer}')">✔ Genehmigen</button>`;
+        <strong>Grund:</strong> ${u.grund || "-"}<br>
+        <button class="leitung-btn" onclick="genehmigen('${u.dienstnummer}')">✔ Genehmigen</button>
+        <button class="leitung-btn" onclick="loeschen('${u.dienstnummer}')">❌ Löschen</button>`;
         offeneDiv.appendChild(div);
     });
 
@@ -226,7 +249,9 @@ function renderLeitung(){
         const div=document.createElement("div");
         div.style.border="1px solid #5c7aa6"; div.style.margin="5px 0"; div.style.padding="8px";
         div.innerHTML=`<strong>${u.name}</strong> (${u.dienstnummer})<br>
-        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${u.type})`;
+        ${formatDateDE(u.start)} - ${formatDateDE(u.end)} (${u.type})<br>
+        <strong>Grund:</strong> ${u.grund || "-"}<br>
+        <button class="leitung-btn" onclick="loeschen('${u.dienstnummer}')">❌ Löschen</button>`;
         genehmigtDiv.appendChild(div);
     });
 }
